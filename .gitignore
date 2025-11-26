@@ -1,0 +1,25 @@
+# Virtual environment
+youtube/
+venv/
+env/
+*.pyc
+__pycache__/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Data
+data/
+*.db
+
+# Streamlit
+.streamlit/
+
+# OS
+.DS_Store
+Thumbs.db
