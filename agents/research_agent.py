@@ -101,6 +101,72 @@ Be specific, actionable, and format clearly with sections."""
             print(f"\n❌ GPT-4 Error: {str(e)}")
             return f"Analysis failed: {str(e)}\n\nRaw search results:\n{search_summary}"
 
+    def analyze_content_gaps(self, topic, youtube_data):
+            """
+            Analyze content gaps by comparing YouTube videos with web research
+            
+            Args:
+                topic: The topic being analyzed
+                youtube_data: YouTube analysis results
+                
+            Returns:
+                Structured gap analysis with opportunities
+            """
+            print(f"\n🔍 Analyzing content gaps for: '{topic}'...")
+            
+            # First, do research
+            research = self.research_topic(topic)
+            
+            # Then analyze gaps with GPT-4
+            print("\n💡 Identifying opportunities...")
+            
+            gap_analysis_prompt = f"""You are a content strategy expert analyzing opportunities for YouTube creators.
+
+    TOPIC: {topic}
+
+    YOUTUBE COMPETITION DATA:
+    {youtube_data}
+
+    WEB RESEARCH INSIGHTS:
+    {research}
+
+    Based on this information, identify specific content gaps and opportunities:
+
+    1. **HIGH OPPORTUNITY TOPICS** (3-5 topics):
+    - Topics that are trending in research but few/no videos in top results
+    - Format: Topic name | Why it's an opportunity | Estimated difficulty
+
+    2. **UNDERSERVED ANGLES** (3-5 angles):
+    - Popular topics but specific angles not well covered
+    - Format: Angle | Gap description | Potential views
+
+    3. **TRENDING BUT LOW COMPETITION** (2-3 topics):
+    - Recent developments with minimal video coverage
+    - Format: Topic | Trend signal | Competition level
+
+    4. **CONTENT IMPROVEMENT OPPORTUNITIES** (2-3):
+    - Topics with high views but room for better content
+    - Format: What's missing | How to improve | Why it'll win
+
+    Be specific, actionable, and data-driven. Focus on opportunities that can realistically get views."""
+
+            try:
+                messages = [
+                    {"role": "system", "content": "You are an expert content strategist for YouTube creators."},
+                    {"role": "user", "content": gap_analysis_prompt}
+                ]
+                
+                response = self.llm.invoke(messages)
+                gap_analysis = response.content
+                
+                print("\n✅ Gap analysis complete!")
+                return gap_analysis
+                
+            except Exception as e:
+                print(f"\n❌ Gap analysis error: {str(e)}")
+                return "Gap analysis failed. Using basic research data."
+            
+
 
 # Test function
 def test_research_agent():
