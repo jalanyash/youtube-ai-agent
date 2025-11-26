@@ -1,6 +1,7 @@
 from youtube_analyzer import YouTubeAnalyzer
 from research_agent import ResearchAgent
 from topic_scorer import TopicScorer
+from script_writer import ScriptWriter
 
 class ContentAnalyzer:
     """Enhanced content analyzer with gap detection and scoring"""
@@ -10,6 +11,73 @@ class ContentAnalyzer:
         self.researcher = ResearchAgent()
         self.scorer = TopicScorer()
     
+    def generate_full_content_package(self, topic, video_length="10-12 minutes", 
+                                       tone="educational"):
+        """
+        Generate complete content package: analysis + script
+        
+        Args:
+            topic: Video topic
+            video_length: Target length
+            tone: Script tone
+            
+        Returns:
+            Dictionary with analysis and script
+        """
+        print("\n" + "=" * 80)
+        print(f"🎬 GENERATING COMPLETE CONTENT PACKAGE: {topic}")
+        print("=" * 80)
+        
+        # Initialize script writer
+        writer = ScriptWriter()
+        
+        # Step 1: Score the topic
+        print("\n📊 STEP 1/5: Scoring Topic Opportunity...")
+        score_data = self.scorer.score_topic(topic)
+        
+        # Step 2: YouTube Analysis
+        print("\n📺 STEP 2/5: Analyzing YouTube Competition...")
+        youtube_analysis = self.youtube.analyze_top_videos(topic)
+        
+        # Step 3: Research
+        print("\n🔬 STEP 3/5: Conducting Market Research...")
+        research_results = self.researcher.research_topic(topic)
+        
+        # Step 4: Gap Analysis
+        print("\n🎯 STEP 4/5: Identifying Content Gaps...")
+        gap_analysis = self.researcher.analyze_content_gaps(topic, youtube_analysis)
+        
+        # Step 5: Generate Script
+        print("\n✍️ STEP 5/5: Writing Video Script...")
+        script = writer.write_script(
+            topic=topic,
+            youtube_analysis=youtube_analysis,
+            research_data=research_results,
+            gap_analysis=gap_analysis,
+            video_length=video_length,
+            tone=tone
+        )
+        
+        print("\n🎉 COMPLETE PACKAGE GENERATED!")
+        
+        # Combine everything
+        package = {
+            'topic': topic,
+            'score': score_data,
+            'youtube_analysis': youtube_analysis,
+            'research': research_results,
+            'gaps': gap_analysis,
+            'script': script,
+            'metadata': {
+                'video_length': video_length,
+                'tone': tone,
+                'recommendation': score_data['recommendation']
+            }
+        }
+        
+        return package
+    
+
     def analyze_content_opportunity(self, topic):
         """
         Comprehensive content opportunity analysis
@@ -188,25 +256,117 @@ Confidence Level: {score_data['confidence']}
         print(f"   {scores[0]['recommendation']}")
         
         return scores
+    
+    def export_content_package(self, package, output_dir="output"):
+        """
+        Export complete content package to files
+        
+        Args:
+            package: Content package dictionary
+            output_dir: Directory to save files
+            
+        Returns:
+            Dictionary with file paths
+        """
+        import os
+        import json
+        from datetime import datetime
+        
+        # Create output directory
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        safe_topic = package['topic'].replace(" ", "_").replace("/", "-")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        files = {}
+        
+        # 1. Save full report (markdown)
+        report_file = os.path.join(output_dir, f"{safe_topic}_report_{timestamp}.md")
+        with open(report_file, 'w', encoding='utf-8') as f:
+            f.write(f"# Content Analysis Report: {package['topic']}\n\n")
+            f.write(f"**Generated:** {timestamp}\n\n")
+            f.write(f"## Score: {package['score']['total_score']}/100\n\n")
+            f.write(f"**Recommendation:** {package['score']['recommendation']}\n\n")
+            f.write(f"---\n\n")
+            f.write(f"## YouTube Analysis\n\n{package['youtube_analysis']}\n\n")
+            f.write(f"---\n\n")
+            f.write(f"## Market Research\n\n{package['research']}\n\n")
+            f.write(f"---\n\n")
+            f.write(f"## Content Gaps\n\n{package['gaps']}\n\n")
+        files['report'] = report_file
+        
+        # 2. Save script separately
+        script_file = os.path.join(output_dir, f"{safe_topic}_script_{timestamp}.txt")
+        with open(script_file, 'w', encoding='utf-8') as f:
+            f.write(package['script'])
+        files['script'] = script_file
+        
+        # 3. Save metadata as JSON
+        metadata_file = os.path.join(output_dir, f"{safe_topic}_metadata_{timestamp}.json")
+        metadata = {
+            'topic': package['topic'],
+            'score': package['score']['total_score'],
+            'recommendation': package['score']['recommendation'],
+            'video_length': package['metadata']['video_length'],
+            'tone': package['metadata']['tone'],
+            'generated': timestamp
+        }
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2)
+        files['metadata'] = metadata_file
+        
+        print(f"\n📁 Content package exported to '{output_dir}/':")
+        print(f"   - Report: {os.path.basename(report_file)}")
+        print(f"   - Script: {os.path.basename(script_file)}")
+        print(f"   - Metadata: {os.path.basename(metadata_file)}")
+        
+        return files
 
 
 # Test function
+# Test function
 def test_enhanced_analyzer():
     """Test the enhanced content analyzer"""
-    print("🧪 Testing Enhanced Content Analyzer...\n")
+    print("🧪 Testing Enhanced Content Analyzer with Script Generation...\n")
     
     analyzer = ContentAnalyzer()
     
-    # Test 1: Single topic analysis
-    topic = "AI tools for productivity"
+    # Test: Full content package
+    topic = "ChatGPT tips for beginners"
     
-    print(f"📝 Analyzing: {topic}")
-    print("⏳ This will take 2-3 minutes (comprehensive analysis)...\n")
+    print(f"📝 Generating complete content package for: {topic}")
+    print("⏳ This will take 3-4 minutes (comprehensive process)...\n")
     
-    report = analyzer.analyze_content_opportunity(topic)
+    package = analyzer.generate_full_content_package(
+        topic=topic,
+        video_length="10-12 minutes",
+        tone="educational"
+    )
     
-    print(report)
-    print("\n✅ Analysis complete!")
+    # Display results
+    print("\n" + "="*80)
+    print("📊 CONTENT PACKAGE SUMMARY")
+    print("="*80)
+    print(f"Topic: {package['topic']}")
+    print(f"Score: {package['score']['total_score']}/100")
+    print(f"Recommendation: {package['score']['recommendation']}")
+    print(f"Video Length: {package['metadata']['video_length']}")
+    print(f"Tone: {package['metadata']['tone']}")
+    print("="*80)
+    
+    print("\n📄 GENERATED SCRIPT:")
+    print(package['script'])
+
+    # Export the package
+    print("\n💾 Exporting content package...")
+    files = analyzer.export_content_package(package)
+    
+    print("\n✅ Complete package generated successfully!")
+
+
+# if __name__ == "__main__":
+#     test_enhanced_analyzer()
 
 
 if __name__ == "__main__":
