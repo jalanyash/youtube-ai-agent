@@ -144,7 +144,7 @@ END OF SCRIPT
             return f"Script generation failed: {str(e)}"
     
     def write_multiple_variations(self, topic, youtube_analysis, research_data, 
-                                   gap_analysis, video_length="10-15 minutes"):
+                                   gap_analysis, video_length="10-12 minutes"):
         """
         Generate 3 script variations with different tones
         
@@ -152,17 +152,23 @@ END OF SCRIPT
             Same as write_script but without tone parameter
             
         Returns:
-            Dictionary with 3 script variations
+            Dictionary with 3 script variations + comparison
         """
         print(f"\n📝 Generating 3 script variations for: '{topic}'...")
+        print(f"   This will take 3-4 minutes...\n")
         
-        tones = ["educational", "entertaining", "professional"]
+        tones = {
+            "educational": "Clear, informative, teaching-focused. Like a knowledgeable professor.",
+            "entertaining": "Fun, energetic, personality-driven. Like a friend sharing cool stuff.",
+            "professional": "Polished, authoritative, business-like. Like an industry expert."
+        }
+        
         scripts = {}
         
-        for i, tone in enumerate(tones, 1):
-            print(f"\n{'='*60}")
-            print(f"Variation {i}/3: {tone.upper()} tone")
-            print('='*60)
+        for i, (tone, description) in enumerate(tones.items(), 1):
+            print(f"\n{'='*70}")
+            print(f"📝 Variation {i}/3: {tone.upper()} ({description})")
+            print('='*70)
             
             script = self.write_script(
                 topic, youtube_analysis, research_data, 
@@ -170,7 +176,87 @@ END OF SCRIPT
             )
             scripts[tone] = script
         
+        # Generate comparison
+        print(f"\n{'='*70}")
+        print(f"📊 Generating Comparison Analysis...")
+        print('='*70)
+        
+        comparison = self._compare_script_variations(scripts, topic)
+        scripts['comparison'] = comparison
+        
+        print("\n✅ All variations and comparison generated!")
+        
         return scripts
+    
+    def _compare_script_variations(self, scripts, topic):
+        """
+        Compare script variations and recommend best approach
+        
+        Args:
+            scripts: Dictionary of scripts by tone
+            topic: Topic name
+            
+        Returns:
+            Comparison analysis
+        """
+        comparison_prompt = f"""You are a YouTube content strategist analyzing different script approaches.
+
+TOPIC: {topic}
+
+I have 3 script variations:
+1. EDUCATIONAL TONE
+2. ENTERTAINING TONE
+3. PROFESSIONAL TONE
+
+Based on the topic and typical YouTube audience preferences, provide:
+
+1. **RECOMMENDED TONE** (which one is best for this topic and why)
+   - Consider: topic type, target audience, competition style, engagement potential
+
+2. **TONE COMPARISON**
+   - Educational: Best for [scenarios] | Pros | Cons
+   - Entertaining: Best for [scenarios] | Pros | Cons
+   - Professional: Best for [scenarios] | Pros | Cons
+
+3. **HYBRID APPROACH** (optional)
+   - Suggest mixing elements from different tones if beneficial
+
+4. **FINAL VERDICT**
+   - Which script to use for maximum views and engagement
+   - Any modifications to make it even better
+
+Be specific and practical. Consider what works on YouTube."""
+
+        try:
+            messages = [
+                {"role": "system", "content": "You are an expert YouTube content strategist."},
+                {"role": "user", "content": comparison_prompt}
+            ]
+            
+            response = self.llm.invoke(messages)
+            comparison = response.content
+            
+            # Format comparison
+            formatted_comparison = f"""
+{'='*80}
+SCRIPT VARIATION COMPARISON ANALYSIS
+{'='*80}
+Topic: {topic}
+Variations Analyzed: Educational, Entertaining, Professional
+{'='*80}
+
+{comparison}
+
+{'='*80}
+END OF COMPARISON
+{'='*80}
+"""
+            
+            return formatted_comparison
+            
+        except Exception as e:
+            print(f"\n❌ Comparison error: {str(e)}")
+            return "Comparison analysis unavailable."
     
     def _get_timestamp(self):
         """Get current timestamp"""
@@ -212,45 +298,64 @@ END OF SCRIPT
 
 # Test function
 def test_script_writer():
-    """Test the Script Writer Agent"""
-    print("🧪 Testing Script Writer Agent...\n")
+    """Test the Script Writer Agent with variations"""
+    print("🧪 Testing Script Writer Agent with Variations...\n")
     print("="*80)
     
     writer = ScriptWriter()
     
-    # Sample data (in real use, this comes from other agents)
-    topic = "AI Tools for Productivity"
+    # Sample data
+    topic = "Best AI Tools for Students"
     
-    youtube_analysis = """Top 5 videos average 6M views each.
-Most successful approach: List-style format showing 5-10 tools.
-High engagement on practical demos and real use cases."""
+    youtube_analysis = """Top videos average 8M views.
+Successful format: List-style with practical demos.
+High engagement on real student testimonials."""
     
-    research_data = """Trending: AI automation, personalized AI assistants.
-Common questions: Which tools are best? How much do they cost?
-Gap: Not enough content on limitations and privacy concerns."""
+    research_data = """Trending: AI note-taking, study assistants.
+Common questions: Are they free? Do they work offline?
+Gap: Not enough content on budget options."""
     
-    gap_analysis = """High opportunity: AI tools for specific industries.
-Underserved angle: Honest reviews including cons.
-Trending: Ethical AI use in business."""
+    gap_analysis = """High opportunity: AI tools under $10/month.
+Underserved: Privacy-focused AI tools for students.
+Trending: AI for exam preparation."""
     
     print(f"📝 Topic: {topic}")
-    print("⏳ This will take 60-90 seconds (GPT-4 is writing!)...\n")
+    print("⏳ Generating 3 script variations...")
+    print("   This will take 3-4 minutes (GPT-4 writing 3 scripts!)\n")
     
-    # Generate script
-    script = writer.write_script(
+    # Generate all variations
+    variations = writer.write_multiple_variations(
         topic=topic,
         youtube_analysis=youtube_analysis,
         research_data=research_data,
         gap_analysis=gap_analysis,
-        video_length="10-12 minutes",
-        tone="educational"
+        video_length="10-12 minutes"
     )
     
+    # Display comparison
     print("\n" + "="*80)
-    print("📄 GENERATED SCRIPT:")
+    print("📊 COMPARISON ANALYSIS:")
     print("="*80)
-    print(script)
-    print("\n✅ Test complete!")
+    print(variations['comparison'])
+    
+    # Show snippet of each script
+    print("\n" + "="*80)
+    print("📄 SCRIPT PREVIEWS:")
+    print("="*80)
+    
+    for tone in ['educational', 'entertaining', 'professional']:
+        print(f"\n{tone.upper()} TONE (first 300 chars):")
+        print("-" * 70)
+        # Find the hook in the script
+        script = variations[tone]
+        hook_start = script.find("**HOOK")
+        if hook_start != -1:
+            preview = script[hook_start:hook_start+300]
+            print(preview + "...")
+        else:
+            print(script[:300] + "...")
+    
+    print("\n✅ All variations generated successfully!")
 
 
 if __name__ == "__main__":

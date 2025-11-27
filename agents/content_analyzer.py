@@ -257,6 +257,72 @@ Confidence Level: {score_data['confidence']}
         
         return scores
     
+    def generate_content_package_with_variations(self, topic, video_length="10-12 minutes"):
+        """
+        Generate complete content package with script variations
+        
+        Args:
+            topic: Video topic
+            video_length: Target length
+            
+        Returns:
+            Dictionary with analysis and 3 script variations
+        """
+        print("\n" + "=" * 80)
+        print(f"🎬 GENERATING COMPLETE PACKAGE WITH VARIATIONS: {topic}")
+        print("=" * 80)
+        
+        # Initialize script writer
+        from script_writer import ScriptWriter
+        writer = ScriptWriter()
+        
+        # Step 1: Score the topic
+        print("\n📊 STEP 1/5: Scoring Topic Opportunity...")
+        score_data = self.scorer.score_topic(topic)
+        
+        # Step 2: YouTube Analysis
+        print("\n📺 STEP 2/5: Analyzing YouTube Competition...")
+        youtube_analysis = self.youtube.analyze_top_videos(topic)
+        
+        # Step 3: Research
+        print("\n🔬 STEP 3/5: Conducting Market Research...")
+        research_results = self.researcher.research_topic(topic)
+        
+        # Step 4: Gap Analysis
+        print("\n🎯 STEP 4/5: Identifying Content Gaps...")
+        gap_analysis = self.researcher.analyze_content_gaps(topic, youtube_analysis)
+        
+        # Step 5: Generate Script Variations
+        print("\n✍️ STEP 5/5: Writing Script Variations...")
+        print("   Generating 3 different tones: Educational, Entertaining, Professional")
+        
+        script_variations = writer.write_multiple_variations(
+            topic=topic,
+            youtube_analysis=youtube_analysis,
+            research_data=research_results,
+            gap_analysis=gap_analysis,
+            video_length=video_length
+        )
+        
+        print("\n🎉 COMPLETE PACKAGE WITH VARIATIONS GENERATED!")
+        
+        # Combine everything
+        package = {
+            'topic': topic,
+            'score': score_data,
+            'youtube_analysis': youtube_analysis,
+            'research': research_results,
+            'gaps': gap_analysis,
+            'script_variations': script_variations,
+            'metadata': {
+                'video_length': video_length,
+                'variations': ['educational', 'entertaining', 'professional'],
+                'recommendation': score_data['recommendation']
+            }
+        }
+        
+        return package
+    
     def export_content_package(self, package, output_dir="output"):
         """
         Export complete content package to files
@@ -323,6 +389,77 @@ Confidence Level: {score_data['confidence']}
         
         return files
 
+    def export_package_with_variations(self, package, output_dir="output"):
+        """
+        Export package with all script variations
+        
+        Args:
+            package: Content package with variations
+            output_dir: Directory to save files
+            
+        Returns:
+            Dictionary with file paths
+        """
+        import os
+        import json
+        from datetime import datetime
+        
+        # Create output directory
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        safe_topic = package['topic'].replace(" ", "_").replace("/", "-")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        files = {}
+        
+        # 1. Save analysis report
+        report_file = os.path.join(output_dir, f"{safe_topic}_analysis_{timestamp}.md")
+        with open(report_file, 'w', encoding='utf-8') as f:
+            f.write(f"# Content Analysis: {package['topic']}\n\n")
+            f.write(f"**Score:** {package['score']['total_score']}/100\n\n")
+            f.write(f"**Recommendation:** {package['score']['recommendation']}\n\n")
+            f.write(f"---\n\n## YouTube Analysis\n\n{package['youtube_analysis']}\n\n")
+            f.write(f"---\n\n## Research\n\n{package['research']}\n\n")
+            f.write(f"---\n\n## Content Gaps\n\n{package['gaps']}\n\n")
+        files['analysis'] = report_file
+        
+        # 2. Save comparison
+        comparison_file = os.path.join(output_dir, f"{safe_topic}_comparison_{timestamp}.txt")
+        with open(comparison_file, 'w', encoding='utf-8') as f:
+            f.write(package['script_variations']['comparison'])
+        files['comparison'] = comparison_file
+        
+        # 3. Save each script variation
+        for tone in ['educational', 'entertaining', 'professional']:
+            script_file = os.path.join(output_dir, f"{safe_topic}_script_{tone}_{timestamp}.txt")
+            with open(script_file, 'w', encoding='utf-8') as f:
+                f.write(package['script_variations'][tone])
+            files[f'script_{tone}'] = script_file
+        
+        # 4. Save metadata
+        metadata_file = os.path.join(output_dir, f"{safe_topic}_metadata_{timestamp}.json")
+        metadata = {
+            'topic': package['topic'],
+            'score': package['score']['total_score'],
+            'recommendation': package['score']['recommendation'],
+            'video_length': package['metadata']['video_length'],
+            'variations_generated': package['metadata']['variations'],
+            'generated': timestamp
+        }
+        with open(metadata_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2)
+        files['metadata'] = metadata_file
+        
+        print(f"\n📁 Complete package exported to '{output_dir}/':")
+        print(f"   - Analysis Report: {os.path.basename(report_file)}")
+        print(f"   - Tone Comparison: {os.path.basename(comparison_file)}")
+        print(f"   - Educational Script: {os.path.basename(files['script_educational'])}")
+        print(f"   - Entertaining Script: {os.path.basename(files['script_entertaining'])}")
+        print(f"   - Professional Script: {os.path.basename(files['script_professional'])}")
+        print(f"   - Metadata: {os.path.basename(metadata_file)}")
+        
+        return files
 
 # Test function
 # Test function
@@ -369,5 +506,49 @@ def test_enhanced_analyzer():
 #     test_enhanced_analyzer()
 
 
+def test_variations():
+    """Quick test for variations feature"""
+    print("🧪 Testing Variations Feature...\n")
+    
+    analyzer = ContentAnalyzer()
+    
+    topic = "Notion AI tutorial"
+    
+    print(f"📝 Topic: {topic}")
+    print("⏳ Generating package with 3 script variations...")
+    print("   This will take 4-5 minutes...\n")
+    
+    package = analyzer.generate_content_package_with_variations(topic)
+    
+    # Show summary
+    print("\n" + "="*80)
+    print("📊 PACKAGE SUMMARY")
+    print("="*80)
+    print(f"Topic: {package['topic']}")
+    print(f"Score: {package['score']['total_score']}/100")
+    print(f"Variations: {', '.join(package['metadata']['variations'])}")
+    
+    # Show comparison snippet
+    print("\n📊 RECOMMENDATION (from GPT-4):")
+    comparison = package['script_variations']['comparison']
+    # Extract just the recommended tone section
+    if "RECOMMENDED TONE" in comparison:
+        start = comparison.find("RECOMMENDED TONE")
+        end = comparison.find("### TONE COMPARISON")
+        if end > start:
+            print(comparison[start:end])
+    
+    # Export everything
+    print("\n💾 Exporting all files...")
+    files = analyzer.export_package_with_variations(package)
+    
+    print("\n✅ Test complete! Check the output folder.")
+
+
 if __name__ == "__main__":
-    test_enhanced_analyzer()
+    # Choose which test to run
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "variations":
+        test_variations()
+    else:
+        test_enhanced_analyzer()
