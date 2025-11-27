@@ -2,6 +2,7 @@ from youtube_analyzer import YouTubeAnalyzer
 from research_agent import ResearchAgent
 from topic_scorer import TopicScorer
 from script_writer import ScriptWriter
+from seo_agent import SEOAgent
 
 class ContentAnalyzer:
     """Enhanced content analyzer with gap detection and scoring"""
@@ -71,6 +72,89 @@ class ContentAnalyzer:
             'metadata': {
                 'video_length': video_length,
                 'tone': tone,
+                'recommendation': score_data['recommendation']
+            }
+        }
+        
+        return package
+    
+    def generate_complete_package(self, topic, video_length="10-12 minutes", 
+                                   include_variations=False):
+        """
+        Generate the ULTIMATE content package: analysis + scripts + SEO
+        
+        Args:
+            topic: Video topic
+            video_length: Target length
+            include_variations: If True, generates 3 script variations
+            
+        Returns:
+            Complete package with everything
+        """
+        print("\n" + "=" * 80)
+        print(f"🚀 GENERATING ULTIMATE CONTENT PACKAGE: {topic}")
+        print("=" * 80)
+        
+        # Initialize all agents
+        from script_writer import ScriptWriter
+        writer = ScriptWriter()
+        seo_optimizer = SEOAgent()
+        
+        # Step 1: Score
+        print("\n📊 STEP 1/6: Scoring Topic...")
+        score_data = self.scorer.score_topic(topic)
+        
+        # Step 2: YouTube Analysis
+        print("\n📺 STEP 2/6: Analyzing YouTube Competition...")
+        youtube_analysis = self.youtube.analyze_top_videos(topic)
+        
+        # Step 3: Research
+        print("\n🔬 STEP 3/6: Conducting Research...")
+        research_results = self.researcher.research_topic(topic)
+        
+        # Step 4: Gap Analysis
+        print("\n🎯 STEP 4/6: Identifying Content Gaps...")
+        gap_analysis = self.researcher.analyze_content_gaps(topic, youtube_analysis)
+        
+        # Step 5: Scripts
+        if include_variations:
+            print("\n✍️ STEP 5/6: Writing Script Variations (3 tones)...")
+            scripts = writer.write_multiple_variations(
+                topic, youtube_analysis, research_results, 
+                gap_analysis, video_length
+            )
+            main_script = scripts['entertaining']  # Use entertaining for SEO
+        else:
+            print("\n✍️ STEP 5/6: Writing Script (single tone)...")
+            main_script = writer.write_script(
+                topic, youtube_analysis, research_results, 
+                gap_analysis, video_length, "educational"
+            )
+            scripts = None
+        
+        # Step 6: SEO Optimization
+        print("\n🎯 STEP 6/6: Optimizing SEO Metadata...")
+        seo_metadata = seo_optimizer.optimize_metadata(
+            topic=topic,
+            script=main_script,
+            youtube_analysis=youtube_analysis,
+            research_data=research_results
+        )
+        
+        print("\n🎉 ULTIMATE PACKAGE COMPLETE!")
+        
+        # Package everything
+        package = {
+            'topic': topic,
+            'score': score_data,
+            'youtube_analysis': youtube_analysis,
+            'research': research_results,
+            'gaps': gap_analysis,
+            'scripts': scripts if include_variations else {'main': main_script},
+            'seo': seo_metadata,
+            'metadata': {
+                'video_length': video_length,
+                'has_variations': include_variations,
                 'recommendation': score_data['recommendation']
             }
         }
@@ -460,6 +544,89 @@ Confidence Level: {score_data['confidence']}
         print(f"   - Metadata: {os.path.basename(metadata_file)}")
         
         return files
+    
+    def export_ultimate_package(self, package, output_dir="output"):
+        """
+        Export the complete ultimate package
+        
+        Args:
+            package: Ultimate content package
+            output_dir: Output directory
+            
+        Returns:
+            File paths dictionary
+        """
+        import os
+        import json
+        from datetime import datetime
+        
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        safe_topic = package['topic'].replace(" ", "_").replace("/", "-")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        files = {}
+        
+        # 1. Complete analysis report
+        report_file = os.path.join(output_dir, f"{safe_topic}_FULL_REPORT_{timestamp}.md")
+        with open(report_file, 'w', encoding='utf-8') as f:
+            f.write(f"# COMPLETE CONTENT PACKAGE: {package['topic']}\n\n")
+            f.write(f"**Score:** {package['score']['total_score']}/100\n")
+            f.write(f"**Recommendation:** {package['score']['recommendation']}\n\n")
+            f.write(f"---\n\n## YouTube Analysis\n\n{package['youtube_analysis']}\n\n")
+            f.write(f"---\n\n## Market Research\n\n{package['research']}\n\n")
+            f.write(f"---\n\n## Content Gaps\n\n{package['gaps']}\n\n")
+        files['report'] = report_file
+        
+        # 2. Scripts
+        if package['metadata']['has_variations']:
+            # Multiple scripts
+            for tone in ['educational', 'entertaining', 'professional']:
+                if tone in package['scripts']:
+                    script_file = os.path.join(output_dir, f"{safe_topic}_script_{tone}_{timestamp}.txt")
+                    with open(script_file, 'w', encoding='utf-8') as f:
+                        f.write(package['scripts'][tone])
+                    files[f'script_{tone}'] = script_file
+            
+            # Comparison
+            if 'comparison' in package['scripts']:
+                comp_file = os.path.join(output_dir, f"{safe_topic}_comparison_{timestamp}.txt")
+                with open(comp_file, 'w', encoding='utf-8') as f:
+                    f.write(package['scripts']['comparison'])
+                files['comparison'] = comp_file
+        else:
+            # Single script
+            script_file = os.path.join(output_dir, f"{safe_topic}_script_{timestamp}.txt")
+            with open(script_file, 'w', encoding='utf-8') as f:
+                f.write(package['scripts']['main'])
+            files['script'] = script_file
+        
+        # 3. SEO Metadata
+        seo_file = os.path.join(output_dir, f"{safe_topic}_SEO_{timestamp}.txt")
+        with open(seo_file, 'w', encoding='utf-8') as f:
+            f.write(package['seo'])
+        files['seo'] = seo_file
+        
+        # 4. Metadata JSON
+        meta_file = os.path.join(output_dir, f"{safe_topic}_metadata_{timestamp}.json")
+        metadata = {
+            'topic': package['topic'],
+            'score': package['score']['total_score'],
+            'recommendation': package['score']['recommendation'],
+            'video_length': package['metadata']['video_length'],
+            'has_variations': package['metadata']['has_variations'],
+            'generated': timestamp
+        }
+        with open(meta_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2)
+        files['metadata'] = meta_file
+        
+        print(f"\n📁 Ultimate package exported to '{output_dir}/':")
+        for key, filepath in files.items():
+            print(f"   - {key}: {os.path.basename(filepath)}")
+        
+        return files
 
 # Test function
 # Test function
@@ -544,11 +711,55 @@ def test_variations():
     
     print("\n✅ Test complete! Check the output folder.")
 
+def test_ultimate_package():
+    """Test the ultimate complete package with SEO"""
+    print("🧪 Testing ULTIMATE Content Package (Analysis + Script + SEO)...\n")
+    
+    analyzer = ContentAnalyzer()
+    
+    topic = "Productivity Apps for Students"
+    
+    print(f"📝 Topic: {topic}")
+    print("⏳ Generating complete package...")
+    print("   This will take 3-4 minutes...\n")
+    
+    # Generate ultimate package (single script + SEO)
+    package = analyzer.generate_complete_package(
+        topic=topic,
+        video_length="10-12 minutes",
+        include_variations=False  # Set True for 3 scripts
+    )
+    
+    # Display summary
+    print("\n" + "="*80)
+    print("📊 ULTIMATE PACKAGE SUMMARY")
+    print("="*80)
+    print(f"Topic: {package['topic']}")
+    print(f"Score: {package['score']['total_score']}/100")
+    print(f"Script Variations: {'Yes (3)' if package['metadata']['has_variations'] else 'No (1)'}")
+    print(f"SEO Included: Yes")
+    print("="*80)
+    
+    # Show SEO snippet
+    print("\n🎯 SEO METADATA (preview):")
+    seo_preview = package['seo'][:500]
+    print(seo_preview + "...\n")
+    
+    # Export
+    print("💾 Exporting complete package...")
+    files = analyzer.export_ultimate_package(package)
+    
+    print("\n✅ Ultimate package complete! Check output folder.")
+
 
 if __name__ == "__main__":
-    # Choose which test to run
     import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "variations":
-        test_variations()
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "variations":
+            test_variations()
+        elif sys.argv[1] == "ultimate":
+            test_ultimate_package()
+        else:
+            test_enhanced_analyzer()
     else:
         test_enhanced_analyzer()
