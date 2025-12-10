@@ -6,11 +6,17 @@ from dotenv import load_dotenv
 # Add agents to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'agents'))
 
+# Add utils to path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
+
 from agents.youtube_analyzer import YouTubeAnalyzer
 from agents.research_agent import ResearchAgent
 from agents.topic_scorer import TopicScorer
 from agents.script_writer import ScriptWriter
 from agents.seo_agent import SEOAgent
+from utils.cost_tracker import CostTracker
+from utils.error_handler import retry_on_error, safe_execute
+
 
 load_dotenv()
 
@@ -26,10 +32,15 @@ class YouTubeContentOrchestrator:
     - SEO Agent (optimization)
     """
     
-    def __init__(self):
-        """Initialize all agents"""
+    def __init__(self, track_costs=True):
+        """Initialize all agents with error handling"""
         print("🚀 Initializing YouTube Content AI Agent System...")
         print("="*80)
+
+        # Initialize cost tracker
+        self.cost_tracker = CostTracker() if track_costs else None
+        if track_costs:
+            print("💰 Cost tracking enabled")
         
         try:
             self.youtube_analyzer = YouTubeAnalyzer()
@@ -50,14 +61,51 @@ class YouTubeContentOrchestrator:
             print("="*80)
             print("🎉 All agents ready!\n")
             
+            if self.cost_tracker:
+                estimated = self.cost_tracker.estimate_cost('complete_package')
+                print(f"💰 Estimated cost per package: ${estimated:.2f}")
+
+            print()
         except Exception as e:
             print(f"\n❌ Initialization error: {str(e)}")
             raise
+
+    def validate_input(self, topic, video_length):
+        """
+        Validate user input before processing
+        
+        Args:
+            topic: Video topic
+            video_length: Video length string
+            
+        Returns:
+            Tuple (is_valid, error_message)
+        """
+        # Check topic
+        if not topic or len(topic.strip()) == 0:
+            return False, "Topic cannot be empty"
+        
+        if len(topic) < 3:
+            return False, "Topic too short (minimum 3 characters)"
+        
+        if len(topic) > 200:
+            return False, "Topic too long (maximum 200 characters)"
+        
+        # Check video length format
+        valid_lengths = [
+            "5-8 minutes", "8-10 minutes", "10-12 minutes", 
+            "12-15 minutes", "15-20 minutes", "20+ minutes"
+        ]
+        
+        if video_length not in valid_lengths:
+            return False, f"Invalid length. Choose from: {', '.join(valid_lengths)}"
+        
+        return True, None    
     
     def create_content_package(self, topic, video_length="10-12 minutes", 
                                tone="educational", include_seo=True):
         """
-        Create complete content package with single script
+        Create complete content package with validation and cost tracking
         
         Args:
             topic: Video topic
@@ -68,10 +116,22 @@ class YouTubeContentOrchestrator:
         Returns:
             Complete content package dictionary
         """
+        # Validate input first
+        is_valid, error_msg = self.validate_input(topic, video_length)
+        if not is_valid:
+            print(f"\n❌ Invalid input: {error_msg}")
+            return {'error': error_msg, 'topic': topic}
+        
         print("\n" + "="*80)
         print(f"🎬 CREATING CONTENT PACKAGE: {topic}")
         print("="*80)
         print(f"Length: {video_length} | Tone: {tone} | SEO: {include_seo}")
+        
+        # Show estimated cost
+        if self.cost_tracker:
+            estimated = self.cost_tracker.estimate_cost('complete_package')
+            print(f"💰 Estimated cost: ${estimated:.2f}")
+        
         print("="*80 + "\n")
         
         package = {
@@ -91,11 +151,16 @@ class YouTubeContentOrchestrator:
             package['score'] = score_data
             print(f"    ✅ Score: {score_data['total_score']}/100 - {score_data['recommendation']}")
             
+            if self.cost_tracker:
+                self.cost_tracker.log_operation('scoring', tokens_input=200, tokens_output=50)
+            
             # Step 2: YouTube Analysis
             print("\n📺 [2/6] Analyzing YouTube Competition...")
             youtube_analysis = self.youtube_analyzer.analyze_top_videos(topic)
             package['youtube_analysis'] = youtube_analysis
             print("    ✅ Analyzed top 5 videos")
+            
+            # YouTube API is free, no cost tracking needed
             
             # Step 3: Market Research
             print("\n🔬 [3/6] Conducting Market Research...")
@@ -103,11 +168,17 @@ class YouTubeContentOrchestrator:
             package['research'] = research_data
             print("    ✅ Research complete")
             
+            if self.cost_tracker:
+                self.cost_tracker.log_operation('research', tokens_input=1000, tokens_output=800)
+            
             # Step 4: Content Gaps
             print("\n🎯 [4/6] Identifying Content Gaps...")
             gap_analysis = self.researcher.analyze_content_gaps(topic, youtube_analysis)
             package['gaps'] = gap_analysis
             print("    ✅ Gaps identified")
+            
+            if self.cost_tracker:
+                self.cost_tracker.log_operation('gap_analysis', tokens_input=1500, tokens_output=600)
             
             # Step 5: Script Generation
             print("\n✍️ [5/6] Writing Video Script...")
@@ -118,6 +189,9 @@ class YouTubeContentOrchestrator:
             package['script'] = script
             print("    ✅ Script generated")
             
+            if self.cost_tracker:
+                self.cost_tracker.log_operation('script', tokens_input=2000, tokens_output=1500)
+            
             # Step 6: SEO Optimization (optional)
             if include_seo:
                 print("\n🎯 [6/6] Optimizing SEO Metadata...")
@@ -126,6 +200,9 @@ class YouTubeContentOrchestrator:
                 )
                 package['seo'] = seo_metadata
                 print("    ✅ SEO optimized")
+                
+                if self.cost_tracker:
+                    self.cost_tracker.log_operation('seo', tokens_input=1200, tokens_output=500)
             else:
                 print("\n⏭️ [6/6] Skipping SEO (not requested)")
                 package['seo'] = None
@@ -134,10 +211,19 @@ class YouTubeContentOrchestrator:
             print("🎉 CONTENT PACKAGE COMPLETE!")
             print("="*80)
             
+            # Show cost summary
+            if self.cost_tracker:
+                session_cost = self.cost_tracker.get_session_cost()
+                print(f"\n💰 This package cost: ${session_cost:.2f}")
+                total_cost = self.cost_tracker.get_total_project_cost()
+                print(f"💰 Total project cost: ${total_cost:.2f}")
+            
             return package
             
         except Exception as e:
             print(f"\n❌ Error during content generation: {str(e)}")
+            print(f"   Error type: {type(e).__name__}")
+            print(f"   Consider checking your API keys and internet connection")
             package['error'] = str(e)
             return package
     
@@ -344,13 +430,53 @@ class YouTubeContentOrchestrator:
         }
         return status
 
+def show_examples():
+    """Show usage examples"""
+    examples = """
+📚 USAGE EXAMPLES:
+
+Basic Usage:
+  python orchestrator.py "Your Topic Here"
+
+With Options:
+  python orchestrator.py "AI Tools 2024" --tone entertaining
+  python orchestrator.py "ChatGPT Guide" --length "15-20 minutes"
+  python orchestrator.py "Quick Tutorial" --no-seo
+  python orchestrator.py "My Topic" --variations
+
+Advanced:
+  python orchestrator.py "Topic" --variations --tone professional --length "20+ minutes"
+
+Output Options:
+  python orchestrator.py "Topic" --output my_folder
+
+💡 Tips:
+- Use quotes around multi-word topics
+- Variations mode generates 3 scripts (takes longer)
+- SEO is included by default (use --no-seo to skip)
+- Check 'output/' folder for generated files
+
+📊 Cost Information:
+- Single package: ~$0.50-0.75
+- With variations: ~$1.50-2.00
+- YouTube API: FREE
+- Tavily Search: FREE (1k/month)
+"""
+    print(examples)
+
 
 def main():
     """Main CLI interface"""
     import argparse
+
+    # Check for examples flag first
+    if '--examples' in sys.argv or '-e' in sys.argv:
+        show_examples()
+        return
     
     parser = argparse.ArgumentParser(
-        description='YouTube Content AI Agent System - Automated content creation'
+        description='YouTube Content AI Agent System - Automated content creation',
+        epilog='Use --examples to see usage examples'
     )
     parser.add_argument('topic', type=str, help='Video topic')
     parser.add_argument('--length', type=str, default='10-12 minutes',
